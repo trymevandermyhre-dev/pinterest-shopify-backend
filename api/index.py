@@ -84,3 +84,55 @@ def ai_test():
     return {
         "output": response.choices[0].message.content
     }
+@app.post("/generate-pin")
+def generate_pin(keywords: list[str] | None = None):
+
+    # Fallback til keywords.txt hvis ingen sendes
+    if not keywords:
+        try:
+            with open("keywords.txt", "r") as f:
+                keywords = [line.strip() for line in f if line.strip()]
+        except FileNotFoundError:
+            keywords = []
+
+    prompt = f"""
+You are an expert Pinterest SEO copywriter.
+
+TASK:
+Generate ONE Pinterest pin based on a fashion product image (image will be added later).
+
+STRICT RULES:
+- Language: English
+- Platform: Pinterest
+- Title: concise, SEO-optimized, purchase intent
+- Description:
+  - 4–7 sentences
+  - Use 15–30 keywords TOTAL
+  - Keywords must be embedded naturally in sentences
+  - No hashtags
+  - No emojis
+  - No keyword lists
+  - Avoid repeating sentence structure
+- Focus on buyer intent, outfit use-cases, and trends
+- Do NOT over-optimize or stuff keywords
+
+KEYWORDS TO USE (mix, vary, do not repeat exact structure):
+{", ".join(keywords)}
+
+RETURN ONLY valid JSON in this exact structure:
+{{
+  "title": "...",
+  "description": ["...", "..."],
+  "keywords_used": ["...", "..."]
+}}
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You generate Pinterest SEO content only."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+
+    return response.choices[0].message.content
