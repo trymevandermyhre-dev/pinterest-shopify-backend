@@ -136,3 +136,76 @@ RETURN ONLY valid JSON in this exact structure:
     )
 
     return response.choices[0].message.content
+from fastapi import UploadFile, File
+
+@app.post("/generate-pin-from-image")
+async def generate_pin_from_image(
+    image: UploadFile = File(...),
+    keywords: list[str] | None = None
+):
+
+    # Fallback keywords
+    if not keywords:
+        try:
+            with open("keywords.txt", "r") as f:
+                keywords = [line.strip() for line in f if line.strip()]
+        except FileNotFoundError:
+            keywords = []
+
+    image_bytes = await image.read()
+
+    prompt = f"""
+You are an expert Pinterest SEO copywriter.
+
+TASK:
+Analyze the provided product image.
+Identify the garment type and style.
+Generate ONE Pinterest pin.
+
+STRICT RULES:
+- Language: English
+- Platform: Pinterest
+- Title: SEO-optimized, purchase intent
+- Description:
+  - 4–7 sentences
+  - Use 15–30 keywords TOTAL
+  - Keywords must be embedded naturally
+  - No hashtags
+  - No emojis
+  - No keyword lists
+  - Avoid repeating sentence structures
+- Keep content highly relevant to what is visible in the image
+
+KEYWORDS TO USE (mix and vary):
+{", ".join(keywords)}
+
+RETURN ONLY valid JSON in this structure:
+{{
+  "garment": "...",
+  "style": "...",
+  "title": "...",
+  "description": ["...", "..."],
+  "keywords_used": ["...", "..."]
+}}
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_bytes.hex()}"
+                        }
+                    }
+                ]
+            }
+        ]
+    )
+
+    return response.choices[0].message.content
+
