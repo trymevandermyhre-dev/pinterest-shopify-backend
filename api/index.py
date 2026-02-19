@@ -209,3 +209,38 @@ RETURN ONLY valid JSON in this structure:
 
     return response.choices[0].message.content
 
+class ImageUrlRequest(BaseModel):
+    image_url: str
+    keywords: list[str] | None = None
+
+
+@app.post("/generate-pin-from-image-url")
+def generate_pin_from_image_url(data: ImageUrlRequest):
+
+    keywords = data.keywords or []
+
+    prompt = f"""
+Analyze the product image and generate one Pinterest pin.
+
+Return valid JSON with:
+- title
+- 4–7 sentence description
+- keywords_used
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": data.image_url}}
+                ]
+            }
+        ]
+    )
+
+    return response.choices[0].message.content
+
+
